@@ -1,0 +1,296 @@
+# Conditional for release and snapshot builds. Uncomment for release-builds.
+%global rel_build 1
+
+# General needed defines.
+%global bburl		https://bitbucket.org/mmueller2012/%{name}/
+%global commit		b7b5e5471d527a801ad63138e963e1839d61e872
+%global shortcommit	%(c=%{commit};echo ${c:0:12})
+
+# Settings used for build from snapshots.
+%{!?rel_build:%global commit_date	20140714}
+%{!?rel_build:%global gitver		git%{commit_date}-%{shortcommit}}
+%{!?rel_build:%global gitrel		.git%{commit_date}.%{shortcommit}}
+%{?rel_build:%global  gittar		%{name}-%{version}.tar.gz}
+%{!?rel_build:%global gittar		%{name}-%{version}-%{gitver}.tar.gz}
+
+# Setup define for used docdir.
+%if 0%{?fedora} >= 20 || 0%{?rhel} >= 8
+%global pkgdocdir	%{_docdir}/%{name}
+%else # 0%{?fedora} >= 20 || 0%{?rhel} >= 8
+%global pkgdocdir	%{_docdir}/%{name}-%{version}
+%endif # 0%{?fedora} >= 20 || 0%{?rhel} >= 8
+
+# lib%%{name}*.so* is a private lib in a private libdir with no headers,
+# so we should not provide that.
+%global __provides_exclude ^lib%{name}.*\\.so.*$
+
+Name:			pipelight
+Version:		0.2.8
+Release:		1%{?gitrel}%{?dist}
+Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
+
+License:		GPLv2+ or LGPLv2+ or MPLv1.1
+URL:			http://%{name}.net/
+%{?rel_build:Source0:	%{bburl}get/v%{version}.tar.gz#/%{?gittar}}
+%{!?rel_build:Source0:	%{bburl}get/%{shortcommit}.tar.gz#/%{?gittar}}
+
+# Use the most recent dependency-installer-script provided in upstream's scm.
+Source1:		%{bburl}raw/master/share/install-dependency.sig
+
+# Wine is available on these arches, only.
+ExclusiveArch:		%{arm} %{ix86} x86_64
+
+BuildRequires:		%{__gpg}
+BuildRequires:		libX11-devel
+BuildRequires:		mingw32-gcc-c++
+BuildRequires:		mingw64-gcc-c++
+%if 0%{?fedora} >= 20 || 0%{?rhel} >= 7
+BuildRequires:		mingw32-winpthreads
+BuildRequires:		mingw64-winpthreads
+%endif # 0%{?fedora} >= 20 || 0%{?rhel} >= 7
+
+Requires:		mozilla-filesystem%{?_isa}
+Requires:		%{name}-common			== %{version}-%{release}
+Requires:		%{name}-selinux
+Requires:		wine%{?_isa}			>= 1.7.22-2
+
+Requires(post):		%{_bindir}/bash
+Requires(post):		grep
+Requires(post):		sed
+Requires(preun):	%{_bindir}/bash
+
+%description
+Pipelight is a NPAPI wrapper plugin for using Windows plugins in Linux
+browsers and therefore giving you the possibility to access services
+which are otherwise not available for Linux users.  Typical examples of
+such services are Netflix and Amazon Instant, which both use the
+proprietary browser plugin Silverlight.  These services cannot normally
+be used on Linux since this plugin is only available for Windows.
+
+Pipelight helps you access these services by using the original
+Silverlight plugin directly in your browser, all while giving you a
+better hardware acceleration and performance than a virtual machine.
+Besides Silverlight, you can also use a variety of other plugins that
+are supported by Pipelight.
+
+Pipelight will take care of installing, configuring and updating all
+supported plugins.  From the perspective of the browser these plugins
+will behave just like any other normal Linux plugin after you have
+enabled them.
+
+For further information about all supported plugins, their installation,
+configuration and usage, please visit %{url}.
+
+
+%package common
+Summary:		Common files needed by %{name}
+BuildArch:		noarch
+
+Requires:		%{_bindir}/sha256sum
+Requires:		%{_bindir}/wget
+Requires:		%{_bindir}/zenity
+Requires:		%{__gpg}
+Requires:		%{name}				== %{version}-%{release}
+Requires:		%{name}-selinux
+Requires:		wine				>= 1.7.22-2
+
+Requires(post):		%{__cp}
+
+%description common
+This package contains common files needed by %{name}.
+
+
+%prep
+%setup -qn mmueller2012-%{name}-%{shortcommit}
+
+# Copy changelog and licenses to toplevel.
+%{__cp} -a debian/changelog ChangeLog
+%{__cp} -a debian/copyright COPYRIGHT
+
+# Remove extra static-flag from mingw-linker-flags.
+%{__sed} -i -e 's![ \t*]-static"$!"!g' configure
+
+# Replace the install-dependency-script with a more recent version
+# from upstream's scm and fix it's hashbang.
+%{__gpg} --batch --no-default-keyring --no-options --skip-verify	\
+	--keyring "share/sig-install-dependency.gpg"			\
+	--decrypt %{SOURCE1} > "share/install-dependency"
+
+
+%build
+%configure								\
+	--with-win64 --wine-path=%{_bindir}/wine			\
+	--so-mode=0755 --gpg-exec=%{__gpg}
+
+%{__make} %{?_smp_mflags}
+
+
+%install
+%make_install
+
+# Copy the packaged dependency-installer-script to some non-changing file.
+# The original file will be %%ghost inside the build rpm in case of manual
+# updates done by the user.  The real file will be installed during %%post.
+%{__mv} -f %{buildroot}%{_datadir}/%{name}/install-dependency		\
+	%{buildroot}%{_datadir}/%{name}/install-dependency.real
+%{_bindir}/touch %{buildroot}%{_datadir}/%{name}/install-dependency	\
+	%{buildroot}%{_datadir}/%{name}/install-dependency.sig
+%{__chmod} 0755 %{buildroot}%{_datadir}/%{name}/install-dependency
+
+# Install %%doc to %%{pkgdocdir}.
+%{__mkdir} -p %{buildroot}%{pkgdocdir}
+cp -af ChangeLog COPYRIGHT LICENSE licenses %{buildroot}%{pkgdocdir}
+
+
+%post
+# This will not enable any plugins.
+%{_bindir}/%{name}-plugin --create-mozilla-plugins &>/dev/null
+%ifarch x86_64
+for _plugin in $(%{_bindir}/%{name}-plugin |				\
+			%{__grep} "x64" |				\
+			%{__sed} -e 's!^[ \t]*!!g')
+do
+  %{_bindir}/%{name}-plugin --unlock ${_plugin} &>/dev/null
+done
+%endif # arch x86_64
+
+%post common
+# Restore the dependency-installer-script shipped inside the recent package.
+%{__cp} -af %{_datadir}/%{name}/install-dependency.real			\
+	%{_datadir}/%{name}/install-dependency
+
+%preun
+# This will disable and remove all plugins, if the last instance of this
+# package will be removed completely.  This doesn't touch anything on updates.
+if [ $1 -eq 0 ]
+then
+  %{_bindir}/%{name}-plugin --disable-all &>/dev/null
+  %{_bindir}/%{name}-plugin --remove-mozilla-plugins &>/dev/null
+fi
+
+
+%files
+%doc %dir %{pkgdocdir}
+%doc %{pkgdocdir}/LICENSE
+%{_bindir}/%{name}-plugin
+%{_libdir}/%{name}
+%{_mandir}/man1/%{name}-plugin.1*
+
+%files common
+%doc %exclude %{pkgdocdir}/LICENSE
+%doc %{pkgdocdir}/*
+%dir %{_datadir}/%{name}
+%ghost %{_datadir}/%{name}/install-dependency
+%ghost %{_datadir}/%{name}/install-dependency.sig
+%{_datadir}/%{name}/*/
+%{_datadir}/%{name}/install-dependency.real
+%{_datadir}/%{name}/pluginloader*
+%{_datadir}/%{name}/sig-install-dependency.gpg
+%{_datadir}/%{name}/wine*
+
+
+%changelog
+* Wed Dec 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.8-1
+- new upstream release v0.2.8
+
+* Wed Sep 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-4
+- update Flash to 15.0.0.152
+- remove extra static-flag from mingw-linker-flags
+- fix installing up-to-date install-dependency-script
+- remove arched conditionals for minigw-related builds
+
+* Fri Aug 15 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-3
+- update Flash to 14.0.0.179 and AdobeReader to 11.0.08
+
+* Wed Aug 13 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-2
+- update Silverlight to 5.1.30514.0 and unity3d checksum
+
+* Sun Jul 20 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-1
+- new upstream release -- fixes 'pipelight-plugin --update' command
+
+* Sat Jul 19 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.2-1
+- new upstream release
+- switch back to release-build
+
+* Wed Jul 16 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.16.git20140714.61348bc7adad
+- main-pkg should own %%dir %%{_datadir}/%%{name}, too
+
+* Tue Jul 15 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.15.git20140714.61348bc7adad
+- fix broken dependencies on grep and sed
+
+* Mon Jul 14 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.14.git20140714.61348bc7adad
+- update to new snapshot git20140714.61348bc7adad
+
+* Mon Jul 14 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.13.git20140714.f28c55b42dbe
+- update to new snapshot git20140714.f28c55b42dbe
+
+* Mon Jul 14 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.12.git20140714.be8e5d96a755
+- update to new snapshot git20140714.be8e5d96a755
+
+* Mon Jul 14 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.11.git20140713.066356f40633
+- replaced Requires: wine(compholio) with wine >= 1.7.22-2
+
+* Mon Jul 14 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.10.git20140713.066356f40633
+- added Requires for pipelight-selinux
+- unlock all 'x64-*'-plugins on x86_64 by default
+- added needed Requires and Requires(post)
+
+* Sun Jul 13 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.9.git20140713.066356f40633
+- unlock 'x64-flash'-plugin on x86_64 by default
+
+* Sun Jul 13 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.8.git20140713.066356f40633
+- update to new snapshot git20140713.066356f40633
+
+* Sun Jul 13 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.7.git20140713.d79c1202f857
+- update to new snapshot git20140713.d79c1202f857
+- obsoleted pipelight-0.2.7.1.1_improve-buildsys.patch
+- use signed updated install-dependency-script
+- exclude lib%%{name}*.so* from auto-provides
+- added / moved runtime-Requires between build packages,
+  Requires: wine(compholio), Requires(post) and Requires(preun)
+- fixed typo in %%changelog
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.6.git20140711.035fa4908b63
+- update to new snapshot git20140711.035fa4908b63
+- license-change --> upstream dropped file (src/npapi-headers/npruntime.h)
+  covered by BSD-license
+- upstream now ships proper licese-text-files in src-tarball
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.5.git20140711.8b41e9505f7a
+- split files in %%{pkgdocdir} between main- and common-package
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.4.git20140711.8b41e9505f7a
+- create common-subpackage
+- the %%ghost install-dependency must have 0755-perms
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.3.git20140711.8b41e9505f7a
+- package the %%ghost files to be 0-size
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.2.git20140711.8b41e9505f7a
+- use the most recent dependency-installer-script provided in upstream's scm
+- copy the original dependency-installer-script to some non-changing file and
+  package that one as existing file, the real dependency-installer-script as
+  %%ghost; restore the real dependency-installer-script during %%post from
+  the packaged one
+
+* Fri Jul 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1.1-0.1.git20140711.8b41e9505f7a
+- update to new snapshot git20140711.8b41e9505f7a8710b3817ae93ac46b3be5f96f1f
+- reworked spec-file for release or snapshot-builds
+- updated Patch0 for changes in upstream-sources
+- obsoleted Patch1 and Patch2 -- now in upstream-sources
+
+* Thu Jul 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1-4
+- referenced urls to pull-requests for upstreaming patches
+- referenced url to pull-request for adding the missing license-textfiles
+
+* Thu Jul 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1-3
+- replaced Patch1 with a better solution, thanks to Michael Müller
+- refactored pipelight-0.2.7.1_fix-missing-call-to-setgroups.patch
+- improved pipelight-0.2.7.1_use-cp-a.patch to use `cp -af`
+
+* Tue Jul 08 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1-2
+- added BSD to License (#1117403)
+  see: https://bugzilla.redhat.com/show_bug.cgi?id=1117403#c2
+
+* Mon Jul 07 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.1-1
+- initial rpm release (#1117403)
