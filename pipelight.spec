@@ -26,7 +26,7 @@
 
 Name:			pipelight
 Version:		0.2.8
-Release:		1%{?gitrel}%{?dist}
+Release:		2%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -187,9 +187,11 @@ fi
 
 
 %changelog
+* Thu Dec 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.8-2
+- fix build, link against mingw-winpthreads-static
+
 * Wed Dec 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.8-1
 - new upstream release v0.2.8
-- fix build, link against mingw-winpthreads-static
 
 * Wed Sep 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-4
 - update Flash to 15.0.0.152
