@@ -45,8 +45,8 @@ BuildRequires:		libX11-devel
 BuildRequires:		mingw32-gcc-c++
 BuildRequires:		mingw64-gcc-c++
 %if 0%{?fedora} >= 20 || 0%{?rhel} >= 7
-BuildRequires:		mingw32-winpthreads
-BuildRequires:		mingw64-winpthreads
+BuildRequires:		mingw32-winpthreads-static
+BuildRequires:		mingw64-winpthreads-static
 %endif # 0%{?fedora} >= 20 || 0%{?rhel} >= 7
 
 Requires:		mozilla-filesystem%{?_isa}
@@ -106,9 +106,6 @@ This package contains common files needed by %{name}.
 # Copy changelog and licenses to toplevel.
 %{__cp} -a debian/changelog ChangeLog
 %{__cp} -a debian/copyright COPYRIGHT
-
-# Remove extra static-flag from mingw-linker-flags.
-%{__sed} -i -e 's![ \t*]-static"$!"!g' configure
 
 # Replace the install-dependency-script with a more recent version
 # from upstream's scm and fix it's hashbang.
@@ -192,6 +189,7 @@ fi
 %changelog
 * Wed Dec 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.8-1
 - new upstream release v0.2.8
+- fix build, link against mingw-winpthreads-static
 
 * Wed Sep 10 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.7.3-4
 - update Flash to 15.0.0.152
