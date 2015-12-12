@@ -3,7 +3,7 @@
 
 # General needed defines.
 %global bburl		https://bitbucket.org/mmueller2012/%{name}/
-%global commit		b7b5e5471d527a801ad63138e963e1839d61e872
+%global commit		792e7a4885a6311172f1c876fbe5e9b5b76aace7
 %global shortcommit	%(c=%{commit};echo ${c:0:12})
 
 # Settings used for build from snapshots.
@@ -13,29 +13,25 @@
 %{?rel_build:%global  gittar		%{name}-%{version}.tar.gz}
 %{!?rel_build:%global gittar		%{name}-%{version}-%{gitver}.tar.gz}
 
-# Setup define for used docdir.
-%if 0%{?fedora} >= 20 || 0%{?rhel} >= 8
-%global pkgdocdir	%{_docdir}/%{name}
-%else # 0%{?fedora} >= 20 || 0%{?rhel} >= 8
-%global pkgdocdir	%{_docdir}/%{name}-%{version}
-%endif # 0%{?fedora} >= 20 || 0%{?rhel} >= 8
+# selinux settings
+%{!?_selinux_policy_version: %global _selinux_policy_version %(sed -e 's,.*selinux-policy-\\([^/]*\\)/.*,\\1,' %{_datadir}/selinux/devel/policyhelp 2>/dev/null)}
+%global selinux_types	%(%{__awk} '/^#[[:space:]]*SELINUXTYPE=/,/^[^#]/ { if ($3 == "-") printf "%s ", $2 }' %{_sysconfdir}/selinux/config 2>/dev/null)
+%global selinux_variants %([ -z "%{selinux_types}" ] && echo mls targeted || echo %{selinux_types})
 
 # lib%%{name}*.so* is a private lib in a private libdir with no headers,
 # so we should not provide that.
 %global __provides_exclude ^lib%{name}.*\\.so.*$
 
 Name:			pipelight
-Version:		0.2.8
-Release:		2%{?gitrel}%{?dist}
+Version:		0.2.8.2
+Release:		1%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
 URL:			http://%{name}.net/
 %{?rel_build:Source0:	%{bburl}get/v%{version}.tar.gz#/%{?gittar}}
 %{!?rel_build:Source0:	%{bburl}get/%{shortcommit}.tar.gz#/%{?gittar}}
-
-# Use the most recent dependency-installer-script provided in upstream's scm.
-Source1:		%{bburl}raw/master/share/install-dependency.sig
+Source1:		https://github.com/besser82/pipelight-selinux/archive/v0.3.1.tar.gz#/pipelight-selinux-0.3.1.tar.gz
 
 # Wine is available on these arches, only.
 ExclusiveArch:		%{arm} %{ix86} x86_64
@@ -51,7 +47,7 @@ BuildRequires:		mingw64-winpthreads-static
 
 Requires:		mozilla-filesystem%{?_isa}
 Requires:		%{name}-common			== %{version}-%{release}
-Requires:		%{name}-selinux
+Requires:		%{name}-selinux			== %{version}-%{release}
 Requires:		wine%{?_isa}			>= 1.7.22-2
 
 Requires(post):		%{_bindir}/bash
@@ -91,7 +87,7 @@ Requires:		%{_bindir}/wget
 Requires:		%{_bindir}/zenity
 Requires:		%{__gpg}
 Requires:		%{name}				== %{version}-%{release}
-Requires:		%{name}-selinux
+Requires:		%{name}-selinux			== %{version}-%{release}
 Requires:		wine				>= 1.7.22-2
 
 Requires(post):		%{__cp}
@@ -100,18 +96,43 @@ Requires(post):		%{__cp}
 This package contains common files needed by %{name}.
 
 
+%package selinux
+Summary:		SELinux-policy-module for %{name}
+License:		GPLv2+
+URL:			https://github.com/besser82/%{name}-selinux
+BuildArch:		noarch
+
+BuildRequires:		%{_bindir}/checkmodule
+BuildRequires:		%{_datadir}/selinux/devel/policyhelp
+BuildRequires:		%{_sbindir}/hardlink
+BuildRequires:		selinux-policy-devel
+
+Requires:		%{name}				== %{version}-%{release}
+Requires:		%{name}-common			== %{version}-%{release}
+%if "%{_selinux_policy_version}" != ""
+Requires:		selinux-policy		>= %{_selinux_policy_version}
+%else # "%%{_selinux_policy_version}" != ""
+Requires:		selinux-policy
+%endif # "%%{_selinux_policy_version}" != ""
+
+Requires(post):		%{_sbindir}/fixfiles
+Requires(post):		%{_sbindir}/restorecon
+Requires(post):		%{_sbindir}/semodule
+Requires(post):		%{name}				== %{version}-%{release}
+Requires(post):		%{name}-common			== %{version}-%{release}
+
+Requires(postun):	%{_sbindir}/fixfiles
+Requires(postun):	%{_sbindir}/restorecon
+Requires(postun):	%{_sbindir}/semodule
+Requires(postun):	%{name}				== %{version}-%{release}
+Requires(postun):	%{name}-common			== %{version}-%{release}
+
+%description selinux
+This package contains the SELinux-policy-module for %{name}.
+
+
 %prep
-%setup -qn mmueller2012-%{name}-%{shortcommit}
-
-# Copy changelog and licenses to toplevel.
-%{__cp} -a debian/changelog ChangeLog
-%{__cp} -a debian/copyright COPYRIGHT
-
-# Replace the install-dependency-script with a more recent version
-# from upstream's scm and fix it's hashbang.
-%{__gpg} --batch --no-default-keyring --no-options --skip-verify	\
-	--keyring "share/sig-install-dependency.gpg"			\
-	--decrypt %{SOURCE1} > "share/install-dependency"
+%setup -qn mmueller2012-%{name}-%{shortcommit} -a 1
 
 
 %build
@@ -120,6 +141,14 @@ This package contains common files needed by %{name}.
 	--so-mode=0755 --gpg-exec=%{__gpg}
 
 %{__make} %{?_smp_mflags}
+pushd pipelight-selinux-0.3.1
+  for _selinuxvariant in %{selinux_variants}
+  do
+    %{__make} NAME=${_selinuxvariant} -f %{_datadir}/selinux/devel/Makefile
+    %{__mv} %{name}.pp %{name}.pp.${_selinuxvariant}
+    %{__make} NAME=${_selinuxvariant} -f %{_datadir}/selinux/devel/Makefile clean
+  done
+popd
 
 
 %install
@@ -134,9 +163,16 @@ This package contains common files needed by %{name}.
 	%{buildroot}%{_datadir}/%{name}/install-dependency.sig
 %{__chmod} 0755 %{buildroot}%{_datadir}/%{name}/install-dependency
 
-# Install %%doc to %%{pkgdocdir}.
-%{__mkdir} -p %{buildroot}%{pkgdocdir}
-cp -af ChangeLog COPYRIGHT LICENSE licenses %{buildroot}%{pkgdocdir}
+# Install selinux files
+pushd pipelight-selinux-0.3.1
+  for _selinuxvariant in %{selinux_variants}
+  do
+    %{__mkdir} -p %{buildroot}%{_datadir}/selinux/${_selinuxvariant}
+    %{__install} -pm 644 %{name}.pp.${_selinuxvariant}			\
+      %{buildroot}%{_datadir}/selinux/${_selinuxvariant}/%{name}.pp
+  done
+  %{_sbindir}/hardlink -cv %{buildroot}%{_datadir}/selinux
+popd
 
 
 %post
@@ -165,17 +201,33 @@ then
   %{_bindir}/%{name}-plugin --remove-mozilla-plugins &>/dev/null
 fi
 
+%post selinux
+for _selinuxvariant in %{selinux_variants}
+do
+  %{_sbindir}/semodule -s ${_selinuxvariant}				\
+    -i %{_datadir}/selinux/${_selinuxvariant}/%{name}.pp &> /dev/null || :
+done
+%{_sbindir}/fixfiles -R %{name},%{name}-common restore || :
+%{_sbindir}/restorecon -R /home/*/.wine-pipelight* &> /dev/null || :
+
+%postun selinux
+if [ $1 -eq 0 ] ; then
+  for _selinuxvariant in %{selinux_variants}
+  do
+    %{_sbindir}/semodule -s ${_selinuxvariant} -r %{name} &> /dev/null || :
+  done
+  %{_sbindir}/fixfiles -R %{name},%{name}-common restore || :
+  %{_sbindir}/restorecon -R /home/*/.wine-pipelight* &> /dev/null || :
+fi
+
 
 %files
-%doc %dir %{pkgdocdir}
-%doc %{pkgdocdir}/LICENSE
 %{_bindir}/%{name}-plugin
 %{_libdir}/%{name}
-%{_mandir}/man1/%{name}-plugin.1*
 
 %files common
-%doc %exclude %{pkgdocdir}/LICENSE
-%doc %{pkgdocdir}/*
+%license LICENSE licenses debian/copyright
+%doc debian/changelog
 %dir %{_datadir}/%{name}
 %ghost %{_datadir}/%{name}/install-dependency
 %ghost %{_datadir}/%{name}/install-dependency.sig
@@ -184,9 +236,20 @@ fi
 %{_datadir}/%{name}/pluginloader*
 %{_datadir}/%{name}/sig-install-dependency.gpg
 %{_datadir}/%{name}/wine*
+%{_mandir}/man1/%{name}-plugin.1*
+
+%files selinux
+%license pipelight-selinux-0.3.1/LICENSE.txt
+%doc pipelight-selinux-0.3.1/ChangeLog.md pipelight-selinux-0.3.1/README.md
+%{_datadir}/selinux/*/%{name}.pp
 
 
 %changelog
+* Sat Dec 12 2015 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-1
+- new upstream release v0.2.8.2
+- include selinux policy as part of pipelight-common instead of depending
+  on the dead pipelight-selinux package
+
 * Thu Dec 11 2014 Björn Esser <bjoern.esser@gmail.com> - 0.2.8-2
 - fix build, link against mingw-winpthreads-static
 
