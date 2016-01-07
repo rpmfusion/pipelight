@@ -24,7 +24,7 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		1%{?gitrel}%{?dist}
+Release:		2%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -49,6 +49,7 @@ Requires:		mozilla-filesystem%{?_isa}
 Requires:		%{name}-common			== %{version}-%{release}
 Requires:		%{name}-selinux			== %{version}-%{release}
 Requires:		wine%{?_isa}			>= 1.7.22-2
+Requires:		cabextract
 
 Requires(post):		%{_bindir}/bash
 Requires(post):		grep
@@ -245,6 +246,9 @@ fi
 
 
 %changelog
+* Thu Jan  7 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-2
+- Add missing Requires: cabextract
+
 * Sat Dec 12 2015 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-1
 - new upstream release v0.2.8.2
 - include selinux policy as part of pipelight-common instead of depending
