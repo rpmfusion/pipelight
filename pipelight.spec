@@ -4,6 +4,7 @@
 # General needed defines.
 %global bburl		https://bitbucket.org/mmueller2012/%{name}/
 %global commit		792e7a4885a6311172f1c876fbe5e9b5b76aace7
+%global install_dep_com 1e47c45d70972c111634cc2af7c577bf5eb20b2d
 %global shortcommit	%(c=%{commit};echo ${c:0:12})
 
 # Settings used for build from snapshots.
@@ -24,7 +25,7 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		2%{?gitrel}%{?dist}
+Release:		3%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -32,6 +33,7 @@ URL:			http://%{name}.net/
 %{?rel_build:Source0:	%{bburl}get/v%{version}.tar.gz#/%{?gittar}}
 %{!?rel_build:Source0:	%{bburl}get/%{shortcommit}.tar.gz#/%{?gittar}}
 Source1:		https://github.com/besser82/pipelight-selinux/archive/v0.3.1.tar.gz#/pipelight-selinux-0.3.1.tar.gz
+Source2:                https://bitbucket.org/mmueller2012/pipelight/raw/%{install_dep_com}/share/install-dependency
 
 # Wine is available on these arches, only.
 ExclusiveArch:		%{arm} %{ix86} x86_64
@@ -134,6 +136,7 @@ This package contains the SELinux-policy-module for %{name}.
 
 %prep
 %setup -qn mmueller2012-%{name}-%{shortcommit} -a 1
+cat %{SOURCE2} > share/install-dependency
 
 
 %build
@@ -246,6 +249,10 @@ fi
 
 
 %changelog
+* Fri Sep 16 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-3
+- Update install-dependency script to fix plugin installation no
+  longer working
+
 * Thu Jan  7 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-2
 - Add missing Requires: cabextract
 
