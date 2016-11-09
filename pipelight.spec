@@ -25,7 +25,7 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		3%{?gitrel}%{?dist}
+Release:		4%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -249,6 +249,9 @@ fi
 
 
 %changelog
+* Wed Nov  9 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-4
+- Updated install-dependency script with Flash 23.0.0.205
+
 * Fri Sep 16 2016 Hans de Goede <j.w.r.degoede@gmail.com> - 0.2.8.2-3
 - Update install-dependency script to fix plugin installation no
   longer working
