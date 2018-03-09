@@ -106,7 +106,7 @@ URL:			https://github.com/besser82/%{name}-selinux
 BuildArch:		noarch
 
 BuildRequires:		%{_bindir}/checkmodule
-BuildRequires:		%{_datadir}/selinux/devel/policyhelp
+BuildRequires:		selinux-policy-doc
 BuildRequires:		%{_sbindir}/hardlink
 BuildRequires:		selinux-policy-devel
 
