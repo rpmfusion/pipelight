@@ -140,11 +140,16 @@ cat %{SOURCE2} > share/install-dependency
 
 
 %build
+# the problem is in the new gcc flags
+%global optflags %(echo %{optflags} | sed 's/ -mcet//; s/ -fstack-clash-protection//; s/ -fcf-protection//')
+#global optflags %(echo %{optflags} | sed 's/ -fasynchronous-unwind-tables//; s/ -Wp,-D_GLIBCXX_ASSERTIONS//')
+%global optflags %(echo %{optflags} | sed 's| -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1||')
+
 %configure								\
 	--with-win64 --wine-path=%{_bindir}/wine			\
 	--so-mode=0755 --gpg-exec=%{__gpg}
 
-%{__make} %{?_smp_mflags}
+%make_build
 pushd pipelight-selinux-0.3.1
   for _selinuxvariant in %{selinux_variants}
   do
@@ -251,6 +256,7 @@ fi
 %changelog
 * Fri Mar 02 2018 RPM Fusion Release Engineering <leigh123linux@googlemail.com> - 0.2.8.2-7
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_28_Mass_Rebuild
+- Remove some new gcc flags that breaks the build
 
 * Thu Aug 31 2017 RPM Fusion Release Engineering <kwizart@rpmfusion.org> - 0.2.8.2-6
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Mass_Rebuild
