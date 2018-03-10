@@ -144,6 +144,7 @@ cat %{SOURCE2} > share/install-dependency
 %global optflags %(echo %{optflags} | sed 's/ -mcet//; s/ -fstack-clash-protection//; s/ -fcf-protection//')
 #global optflags %(echo %{optflags} | sed 's/ -fasynchronous-unwind-tables//; s/ -Wp,-D_GLIBCXX_ASSERTIONS//')
 %global optflags %(echo %{optflags} | sed 's| -specs=/usr/lib/rpm/redhat/redhat-annobin-cc1||')
+%global optflags %(echo %{optflags} | sed 's| -mabi=aapcs-linux||')
 
 %configure								\
 	--with-win64 --wine-path=%{_bindir}/wine			\
