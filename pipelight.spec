@@ -24,7 +24,7 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		10%{?gitrel}%{?dist}
+Release:		11%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -254,6 +254,9 @@ fi
 
 
 %changelog
+* Wed Aug 22 2018 Nicolas Chauvet <kwizart@gmail.com> - 0.2.8.2-11
+- Fix broken url
+
 * Sun Aug 19 2018 RPM Fusion Release Engineering <leigh123linux@gmail.com> - 0.2.8.2-10
 - Rebuilt for Fedora 29 Mass Rebuild binutils issue
 
