@@ -37,6 +37,7 @@ Source2:                https://bitbucket.org/mmueller2012/pipelight/raw/%{insta
 # Wine is available on these arches, only.
 ExclusiveArch:		%{arm} %{ix86} x86_64
 
+BuildRequires:		gcc-c++
 BuildRequires:		%{__gpg}
 BuildRequires:		libX11-devel
 BuildRequires:		mingw32-gcc-c++
