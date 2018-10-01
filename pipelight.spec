@@ -24,7 +24,7 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		11%{?gitrel}%{?dist}
+Release:		12%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
@@ -46,7 +46,9 @@ BuildRequires:		mingw32-winpthreads-static
 BuildRequires:		mingw64-winpthreads-static
 %endif # 0%{?fedora} >= 20 || 0%{?rhel} >= 7
 
-Requires:		mozilla-filesystem%{?_isa}
+# mozilla-filesystem is arched but not multilibs
+# don't enforce %%{_isa} on this package
+Requires:		mozilla-filesystem
 Requires:		%{name}-common			== %{version}-%{release}
 Requires:		%{name}-selinux			== %{version}-%{release}
 Requires:		wine%{?_isa}			>= 1.7.22-2
@@ -254,6 +256,9 @@ fi
 
 
 %changelog
+* Mon Oct 01 2018 Nicolas Chauvet <kwizart@gmail.com> - 0.2.8.2-12
+- Fix isa on mozilla-filesystem
+
 * Wed Aug 22 2018 Nicolas Chauvet <kwizart@gmail.com> - 0.2.8.2-11
 - Fix broken url
 
