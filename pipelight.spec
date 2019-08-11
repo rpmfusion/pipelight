@@ -1,13 +1,14 @@
 # Conditional for release and snapshot builds. Uncomment for release-builds.
-%global rel_build 1
+#global rel_build 1
 
 # General needed defines.
-%global commit		792e7a4885a6311172f1c876fbe5e9b5b76aace7
+%global bburl		https://bitbucket.org/mmueller2012/%{name}/
+%global commit		9899d9c32689643d6a2ce5bb4491c9f12ee3d988
 %global install_dep_com 1e47c45d70972c111634cc2af7c577bf5eb20b2d
 %global shortcommit	%(c=%{commit};echo ${c:0:12})
 
 # Settings used for build from snapshots.
-%{!?rel_build:%global commit_date	20140714}
+%{!?rel_build:%global commit_date	20161101}
 %{!?rel_build:%global gitver		git%{commit_date}-%{shortcommit}}
 %{!?rel_build:%global gitrel		.git%{commit_date}.%{shortcommit}}
 %{?rel_build:%global  gittar		%{name}-%{version}.tar.gz}
@@ -24,15 +25,15 @@
 
 Name:			pipelight
 Version:		0.2.8.2
-Release:		14%{?gitrel}%{?dist}
+Release:		15%{?gitrel}%{?dist}
 Summary:		NPAPI Wrapper Plugin for using Windows plugins in Linux browsers
 
 License:		GPLv2+ or LGPLv2+ or MPLv1.1
-URL:			https://bitbucket.org/mmueller2012/pipelight/
-%{?rel_build:Source0:	%{url}get/v%{version}.tar.gz#/%{?gittar}}
-%{!?rel_build:Source0:	%{url}get/%{shortcommit}.tar.gz#/%{?gittar}}
+URL:			http://%{name}.net/
+%{?rel_build:Source0:	%{bburl}get/v%{version}.tar.gz#/%{?gittar}}
+%{!?rel_build:Source0:	%{bburl}get/%{shortcommit}.tar.gz#/%{?gittar}}
 Source1:		https://github.com/besser82/pipelight-selinux/archive/v0.3.1.tar.gz#/pipelight-selinux-0.3.1.tar.gz
-Source2:                https://bitbucket.org/mmueller2012/pipelight/raw/%{install_dep_com}/share/install-dependency
+Patch1:         update_silverlight_url.patch
 
 # Wine is available on these arches, only.
 ExclusiveArch:		%{arm} %{ix86} x86_64
@@ -109,7 +110,7 @@ BuildArch:		noarch
 
 BuildRequires:		%{_bindir}/checkmodule
 BuildRequires:		selinux-policy-doc
-BuildRequires:		%{_sbindir}/hardlink
+BuildRequires:		hardlink
 BuildRequires:		selinux-policy-devel
 
 Requires:		%{name}				== %{version}-%{release}
@@ -137,8 +138,7 @@ This package contains the SELinux-policy-module for %{name}.
 
 
 %prep
-%setup -qn mmueller2012-%{name}-%{shortcommit} -a 1
-cat %{SOURCE2} > share/install-dependency
+%autosetup -p1 -n mmueller2012-%{name}-%{shortcommit} -a 1
 
 
 %build
@@ -183,7 +183,7 @@ pushd pipelight-selinux-0.3.1
     %{__install} -pm 644 %{name}.pp.${_selinuxvariant}			\
       %{buildroot}%{_datadir}/selinux/${_selinuxvariant}/%{name}.pp
   done
-  %{_sbindir}/hardlink -cv %{buildroot}%{_datadir}/selinux
+  hardlink -cv %{buildroot}%{_datadir}/selinux
 popd
 
 
@@ -257,6 +257,9 @@ fi
 
 
 %changelog
+* Sun Aug 11 2019 Sérgio Basto <sergio@serjux.com> - 0.2.8.2-15.git20161101.9899d9c32689
+- Update to git20161101.9899d9c32689
+
 * Sat Aug 10 2019 RPM Fusion Release Engineering <leigh123linux@gmail.com> - 0.2.8.2-14
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_31_Mass_Rebuild
 
